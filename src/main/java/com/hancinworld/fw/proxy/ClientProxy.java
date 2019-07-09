@@ -61,13 +61,13 @@ public class ClientProxy implements IProxy {
     public void registerKeyBindings()
     {
         /* FIXME: Overrides the minecraft hotkey for fullscreen, as there are no hooks */
-        if(fullscreenKeyBinding == null && ConfigurationHandler.instance().isFullscreenWindowedEnabled())
+        if(fullscreenKeyBinding == null && ConfigurationHandler.ENABLED.get())
         {
             fullscreenKeyBinding = client.gameSettings.keyBindFullscreen;
             client.gameSettings.keyBindFullscreen = ignoreKeyBinding;
 
         }
-        else if(fullscreenKeyBinding != null && !ConfigurationHandler.instance().isFullscreenWindowedEnabled())
+        else if(fullscreenKeyBinding != null && !ConfigurationHandler.ENABLED.get())
         {
             Minecraft mc = Minecraft.getMinecraft();
             mc.gameSettings.keyBindFullscreen = fullscreenKeyBinding;
@@ -83,8 +83,6 @@ public class ClientProxy implements IProxy {
     @Override
     public void subscribeEvents(File configurationFile) {
 
-        ConfigurationHandler.instance().init(configurationFile);
-        FMLCommonHandler.instance().bus().register(ConfigurationHandler.instance());
         FMLCommonHandler.instance().bus().register(new KeyInputEventHandler());
         dsHandler = new DrawScreenEventHandler();
         MinecraftForge.EVENT_BUS.register(dsHandler);
@@ -127,15 +125,14 @@ public class ClientProxy implements IProxy {
         Rectangle screenBounds;
         Point centerCoordinates = new Point((int) (currentCoordinates.getMinX() + currentCoordinates.getWidth() / 2), (int) (currentCoordinates.getMinY() + currentCoordinates.getHeight() / 2));
 
-        ConfigurationHandler configuration = ConfigurationHandler.instance();
         //First feature mode: Only remove decorations. No need to calculate screen positions, we're not changing size or location.
-        if(configuration.areAdvancedFeaturesEnabled() && configuration.isOnlyRemoveDecorations()){
+        if(ConfigurationHandler.ADVANCED_ENABLED.get() && ConfigurationHandler.ONLY_REMOVE_DECORATIONS.get()){
             screenBounds = currentCoordinates;
         }
         //Custom dimensions enabled: follow requested settings if we can work with them.
-        else if(configuration.areAdvancedFeaturesEnabled() && configuration.isCustomFullscreenDimensions() && (configuration.getCustomFullscreenDimensionsH() > 256 && configuration.getCustomFullscreenDimensionsW() > 256))
+        else if(ConfigurationHandler.ADVANCED_ENABLED.get() && ConfigurationHandler.CUSTOM_FULLSCREEN.get())
         {
-            screenBounds = new Rectangle(configuration.getCustomFullscreenDimensionsX(),configuration.getCustomFullscreenDimensionsY(), configuration.getCustomFullscreenDimensionsW(),configuration.getCustomFullscreenDimensionsH());
+            screenBounds = new Rectangle(ConfigurationHandler.CUSTOM_FULLSCREEN_X.get(),ConfigurationHandler.CUSTOM_FULLSCREEN_Y.get(),ConfigurationHandler.CUSTOM_FULLSCREEN_W.get(),ConfigurationHandler.CUSTOM_FULLSCREEN_H.get());
 
             //If you've selected a monitor, then X & Y are offsets - easier to do math.
             if(desiredMonitor > 0) {
@@ -162,7 +159,7 @@ public class ClientProxy implements IProxy {
     }
     @Override
     public void toggleFullScreen(boolean goFullScreen) {
-        toggleFullScreen(goFullScreen, ConfigurationHandler.instance().getFullscreenMonitor());
+        toggleFullScreen(goFullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
     }
 
     @Override
@@ -238,23 +235,23 @@ public class ClientProxy implements IProxy {
     public void performStartupChecks()
     {
         //If the mod is disabled by configuration, just put back the initial value.
-        if(!ConfigurationHandler.instance().isFullscreenWindowedEnabled()) {
+        if(!ConfigurationHandler.ENABLED.get()) {
             return;
         }
 
-        if(ConfigurationHandler.instance().isMaximumCompatibilityEnabled()){
-            dsHandler.setInitialFullscreen(client.gameSettings.fullScreen,  ConfigurationHandler.instance().getFullscreenMonitor());
+        if(ConfigurationHandler.MAXIMUM_COMPATIBILITY.get()){
+            dsHandler.setInitialFullscreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
         // This is the correct way to set fullscreen at launch, but LWJGL limitations means we might crash the game if
         // another mod tries to do a similar Display changing operation. Doesn't help the API says "don't use this"
         }else{
             try {
                 //FIXME: Living dangerously here... Is there a better way of doing this?
                 SplashProgress.pause();
-                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.instance().getFullscreenMonitor());
+                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
                 SplashProgress.resume();
             }catch(NoClassDefFoundError e) {
                 LogHelper.warn("Error while doing startup checks, are you using an old version of Forge ? " + e);
-                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.instance().getFullscreenMonitor());
+                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
             }
         }
     }

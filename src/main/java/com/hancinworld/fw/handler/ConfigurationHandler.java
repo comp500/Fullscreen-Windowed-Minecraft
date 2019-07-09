@@ -26,7 +26,7 @@ public class ConfigurationHandler {
 	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_Y;
 	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_W;
 	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_H;
-//	public static ForgeConfigSpec.BooleanValue ONLY_REMOVE_DECORATIONS;
+	public static ForgeConfigSpec.BooleanValue ONLY_REMOVE_DECORATIONS;
 
 	static {
 		CLIENT_BUILDER.comment("General settings").push(CATEGORY_GENERAL);

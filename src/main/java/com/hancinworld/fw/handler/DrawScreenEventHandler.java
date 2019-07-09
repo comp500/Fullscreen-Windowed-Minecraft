@@ -59,7 +59,7 @@ public class DrawScreenEventHandler {
 
     @SubscribeEvent
     public void handleDrawScreenEvent(GuiScreenEvent.DrawScreenEvent event) {
-        if(!ConfigurationHandler.instance().isFullscreenWindowedEnabled())
+        if(!ConfigurationHandler.ENABLED.get())
             return;
 
 
@@ -73,7 +73,7 @@ public class DrawScreenEventHandler {
         {
             _cooldown = 0;
             _lastState = newState;
-            FullscreenWindowed.proxy.toggleFullScreen(!ClientProxy.fullscreen, ConfigurationHandler.instance().getFullscreenMonitor());
+            FullscreenWindowed.proxy.toggleFullScreen(!ClientProxy.fullscreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
         }
 
         _lastState = newState;
