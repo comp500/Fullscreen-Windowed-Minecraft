@@ -22,15 +22,14 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package com.hancinworld.fw.utility;
 
-import com.hancinworld.fw.reference.Reference;
-import net.minecraftforge.fml.common.FMLLog;
+import com.hancinworld.fw.FullscreenWindowed;
 
 import org.apache.logging.log4j.Level;
 
 public class LogHelper {
 
     public static void log(Level logLevel, Object object) {
-        FMLLog.log(Reference.MOD_NAME, logLevel, String.valueOf(object));
+        FullscreenWindowed.LOGGER.log(logLevel, String.valueOf(object));
     }
 
     public static void all(Object object) {

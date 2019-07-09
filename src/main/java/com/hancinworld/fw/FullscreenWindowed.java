@@ -31,15 +31,20 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.*;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Mod(Reference.MOD_ID)
 public class FullscreenWindowed {
 
     public static IProxy proxy = DistExecutor.runForDist(() -> ClientProxy::new, () -> () -> null);
+
+    public static final Logger LOGGER = LogManager.getLogger();
 
     public FullscreenWindowed() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ConfigurationHandler.CLIENT_CONFIG);
@@ -51,22 +56,9 @@ public class FullscreenWindowed {
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        proxy.init();
-    }
-
-    // You can use EventBusSubscriber to automatically subscribe events on the contained class (this is subscribing to the MOD
-    // Event bus for receiving Registry Events)
-    @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
-    public static class RegistryEvents {
-    }
-
-    @Mod.EventHandler
-    public void preInit(FMLPreInitializationEvent event)
-    {
-        //Items and blocks
-        if(proxy != null)
-            proxy.subscribeEvents(event.getSuggestedConfigurationFile());
-
+        if(proxy != null) {
+            proxy.subscribeEvents();
+        }
     }
 
     @Mod.EventHandler

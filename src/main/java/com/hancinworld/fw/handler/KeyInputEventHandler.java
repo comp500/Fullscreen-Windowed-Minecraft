@@ -24,9 +24,13 @@ package com.hancinworld.fw.handler;
 
 import com.hancinworld.fw.FullscreenWindowed;
 import com.hancinworld.fw.proxy.ClientProxy;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
+import com.hancinworld.fw.reference.Reference;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
+@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = Reference.MOD_ID)
 public class KeyInputEventHandler {
 
     private static boolean isCorrectKeyBinding()
@@ -35,12 +39,10 @@ public class KeyInputEventHandler {
     }
 
     @SubscribeEvent
-    public void handleKeyInputEvent(InputEvent.KeyInputEvent event)
+    public static void handleKeyInputEvent(InputEvent.KeyInputEvent event)
     {
-
         if(isCorrectKeyBinding())
         {
-
             FullscreenWindowed.proxy.toggleFullScreen(!ClientProxy.fullscreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
         }
     }

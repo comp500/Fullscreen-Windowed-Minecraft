@@ -27,16 +27,15 @@ import com.hancinworld.fw.proxy.ClientProxy;
 import com.hancinworld.fw.reference.Reference;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.VideoSettingsScreen;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
-import org.lwjgl.input.Keyboard;
 
 /**
  * We need to register for this event because we want fullscreen to be global.
  */
 public class DrawScreenEventHandler {
 
-    private final Minecraft client = Minecraft.getMinecraft();
+    private final Minecraft client = Minecraft.getInstance();
     private boolean _lastState = false;
     private boolean _initialFullscreen = false;
     private boolean _initialGoFullScreen = false;
@@ -45,7 +44,7 @@ public class DrawScreenEventHandler {
     private boolean _isProcessing = false;
     private static boolean isCorrectKeyBinding()
     {
-        return ClientProxy.fullscreenKeyBinding != null && Keyboard.isKeyDown(ClientProxy.fullscreenKeyBinding.getKeyCode());
+        return ClientProxy.fullscreenKeyBinding != null && ClientProxy.fullscreenKeyBinding.isKeyDown();
     }
 
     public void setInitialFullscreen(boolean goFullScreen, int desiredMonitor)
@@ -57,11 +56,9 @@ public class DrawScreenEventHandler {
         _initialDesiredMonitor = desiredMonitor;
     }
 
-    @SubscribeEvent
     public void handleDrawScreenEvent(GuiScreenEvent.DrawScreenEvent event) {
         if(!ConfigurationHandler.ENABLED.get())
             return;
-
 
         boolean newState = isCorrectKeyBinding();
         if(_initialFullscreen && _cooldown >= Reference.DRAW_SCREEN_EVENT_COOLDOWN) {
@@ -81,24 +78,8 @@ public class DrawScreenEventHandler {
         if(_cooldown < Reference.DRAW_SCREEN_EVENT_COOLDOWN)
             _cooldown++;
 
-        if(client.getVersion().startsWith("forge-11")){
-            //Do it the old way in 1.8 since event.getGui does not exist.
-            if(client.currentScreen instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
-                FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
-            }
-        }else{
-            try {
-                if (event.getGui() instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
-                    FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
-                }
-            // In certain scenarios of 1.8, client mods further change the version and the previous check fails.
-            // In those scenarios, we'll get this error and we will fallback to the old method.
-            } catch (NoSuchMethodError error) {
-                //Do it the old way in 1.8 since event.getGui does not exist.
-                if(client.currentScreen instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
-                    FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
-                }
-            }
+        if (event.getGui() instanceof VideoSettingsScreen && client.mainWindow.isFullscreen() != ClientProxy.fullscreen) {
+            FullscreenWindowed.proxy.toggleFullScreen(client.mainWindow.isFullscreen());
         }
     }
 }

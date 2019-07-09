@@ -29,5 +29,5 @@ public interface IProxy {
     void toggleFullScreen(boolean state, int desiredMonitor);
     void performStartupChecks();
     void registerKeyBindings();
-    void subscribeEvents(File configurationFile);
+    void subscribeEvents();
 }

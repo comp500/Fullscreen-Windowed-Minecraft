@@ -26,23 +26,20 @@ import com.hancinworld.fw.handler.ConfigurationHandler;
 import com.hancinworld.fw.handler.DrawScreenEventHandler;
 import com.hancinworld.fw.handler.KeyInputEventHandler;
 import com.hancinworld.fw.reference.Reference;
-import com.hancinworld.fw.utility.LogHelper;
+import net.minecraft.client.renderer.VideoMode;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.client.SplashProgress;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
-import org.lwjgl.LWJGLException;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 import java.io.File;
+import java.nio.IntBuffer;
 
 public class ClientProxy implements IProxy {
 
-    private final Minecraft client = Minecraft.getMinecraft();
+    private final Minecraft client = Minecraft.getInstance();
     private Rectangle _savedWindowedBounds;
     public static boolean fullscreen;
     public static KeyBinding fullscreenKeyBinding;
@@ -50,7 +47,7 @@ public class ClientProxy implements IProxy {
 
     /** This keybind replaces the default MC fullscreen keybind in their logic handler. Without it, the game crashes.
      *  If this is set to any valid key, problems may occur. */
-    public static KeyBinding ignoreKeyBinding = new KeyBinding("key.fullscreenwindowed.unused", Keyboard.KEY_NONE, "key.categories.misc");
+    public static KeyBinding ignoreKeyBinding = new KeyBinding("key.fullscreenwindowed.unused", -1, "key.categories.misc");
 
 
     public ClientProxy()
@@ -69,23 +66,23 @@ public class ClientProxy implements IProxy {
         }
         else if(fullscreenKeyBinding != null && !ConfigurationHandler.ENABLED.get())
         {
-            Minecraft mc = Minecraft.getMinecraft();
+            Minecraft mc = Minecraft.getInstance();
             mc.gameSettings.keyBindFullscreen = fullscreenKeyBinding;
             fullscreenKeyBinding = null;
 
             if(fullscreen){
-                mc.fullscreen = false;
-                mc.toggleFullscreen();
+                mc.mainWindow.toggleFullscreen();
+                //mc.fullscreen = false;
+                //mc.toggleFullscreen();
+                mc.mainWindow.update();
             }
         }
     }
 
     @Override
-    public void subscribeEvents(File configurationFile) {
-
-        FMLCommonHandler.instance().bus().register(new KeyInputEventHandler());
+    public void subscribeEvents() {
         dsHandler = new DrawScreenEventHandler();
-        MinecraftForge.EVENT_BUS.register(dsHandler);
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(dsHandler::handleDrawScreenEvent);
     }
 
     private Rectangle findCurrentScreenDimensionsAndPosition(int x, int y)
@@ -102,8 +99,9 @@ public class ClientProxy implements IProxy {
                 return bounds;
         }
 
-        //if Java isn't able to find a matching screen then use the old LWJGL calcs.
-        return new Rectangle(0, 0, Display.getDesktopDisplayMode().getWidth(), Display.getDesktopDisplayMode().getHeight());
+        //attempt to use GLFW to get the screen's video mode
+        VideoMode mode = new VideoMode(GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor()));
+        return new Rectangle(0, 0, mode.getWidth(), mode.getHeight());
 }
     private Rectangle findScreenDimensionsByID(int monitorID)
     {
@@ -162,6 +160,10 @@ public class ClientProxy implements IProxy {
         toggleFullScreen(goFullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
     }
 
+    private boolean isFullscreen() {
+        return GLFW.glfwGetWindowMonitor(client.mainWindow.getHandle()) != 0L;
+    }
+
     @Override
     public void toggleFullScreen(boolean goFullScreen, int desiredMonitor) {
 
@@ -171,21 +173,28 @@ public class ClientProxy implements IProxy {
         }
 
         //If we're in actual fullscreen right now, then we need to fix that.
-        if(Display.isFullscreen()) {
+        if(isFullscreen()) {
             fullscreen = true;
         }
 
         String expectedState = goFullScreen ? "true":"false";
         // If all state is valid, there is nothing to do and we just exit.
         if(fullscreen == goFullScreen
-                && !Display.isFullscreen()//Display in fullscreen mode: Change required
-                && System.getProperty("org.lwjgl.opengl.Window.undecorated") == expectedState // Window not in expected state
+                && !isFullscreen() //Display in fullscreen mode: Change required
+                && System.getProperty("org.lwjgl.opengl.Window.undecorated").equals(expectedState) // Window not in expected state
         )
             return;
 
         //Save our current display parameters
-        Rectangle currentCoordinates = new Rectangle(Display.getX(), Display.getY(), Display.getWidth(), Display.getHeight());
-        if(goFullScreen && !Display.isFullscreen())
+        IntBuffer currX = IntBuffer.allocate(1);
+        IntBuffer currY = IntBuffer.allocate(1);
+        IntBuffer currW = IntBuffer.allocate(1);
+        IntBuffer currH = IntBuffer.allocate(1);
+        GLFW.glfwGetWindowPos(client.mainWindow.getHandle(), currX, currY);
+        GLFW.glfwGetWindowSize(client.mainWindow.getHandle(), currW, currH);
+        Rectangle currentCoordinates = new Rectangle(currX.get(0), currY.get(0), currW.get(0), currH.get(0));
+
+        if(goFullScreen && !isFullscreen())
             _savedWindowedBounds = currentCoordinates;
 
         //Changing this property and causing a Display update will cause LWJGL to add/remove decorations (borderless).
@@ -199,34 +208,28 @@ public class ClientProxy implements IProxy {
         if(newBounds == null)
             newBounds = screenBounds;
 
-        if(goFullScreen == false && ClientProxy.fullscreen == false) {
+        if(!goFullScreen && !ClientProxy.fullscreen) {
             newBounds = currentCoordinates;
             _savedWindowedBounds = currentCoordinates;
         }
 
-        try {
-            fullscreen = goFullScreen;
-            client.fullscreen = fullscreen;
-            if( client.gameSettings.fullScreen != fullscreen) {
-                client.gameSettings.fullScreen = fullscreen;
-                client.gameSettings.saveOptions();
-            }
-            Display.setFullscreen(false);
-            Display.setDisplayMode(new DisplayMode((int) newBounds.getWidth(), (int) newBounds.getHeight()));
-            Display.setLocation(newBounds.x, newBounds.y);
-
-            client.resize((int) newBounds.getWidth(), (int) newBounds.getHeight());
-            // Related to the Forge fix for MC-68754
-            if (!goFullScreen) {
-            	Display.setResizable(false);
-            }
-            Display.setResizable(!goFullScreen);
-            Display.setVSyncEnabled(client.gameSettings.enableVsync);
-            client.updateDisplay();
-            
-        } catch (LWJGLException e) {
-            e.printStackTrace();
+        fullscreen = goFullScreen;
+        // TODO: set the client's fullscreen thing somehow
+        //client.fullscreen = fullscreen;
+        if( client.gameSettings.fullscreen != fullscreen) {
+            client.gameSettings.fullscreen = fullscreen;
+            client.gameSettings.saveOptions();
         }
+        GLFW.glfwSetWindowMonitor(client.mainWindow.getHandle(), 0L, newBounds.x, newBounds.y, newBounds.width, newBounds.height, -1);
+        //Display.setFullscreen(false);
+        //Display.setDisplayMode(new DisplayMode((int) newBounds.getWidth(), (int) newBounds.getHeight()));
+        //Display.setLocation(newBounds.x, newBounds.y);
+
+        // TODO: mc.func_213226_a()?
+        //client.resize((int) newBounds.getWidth(), (int) newBounds.getHeight());
+        //Display.setResizable(!goFullScreen);
+        //Display.setVSyncEnabled(client.gameSettings.enableVsync);
+        //client.updateDisplay();
 
     }
 
@@ -240,19 +243,20 @@ public class ClientProxy implements IProxy {
         }
 
         if(ConfigurationHandler.MAXIMUM_COMPATIBILITY.get()){
-            dsHandler.setInitialFullscreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
+            dsHandler.setInitialFullscreen(client.gameSettings.fullscreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
         // This is the correct way to set fullscreen at launch, but LWJGL limitations means we might crash the game if
         // another mod tries to do a similar Display changing operation. Doesn't help the API says "don't use this"
         }else{
-            try {
-                //FIXME: Living dangerously here... Is there a better way of doing this?
-                SplashProgress.pause();
-                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
-                SplashProgress.resume();
-            }catch(NoClassDefFoundError e) {
-                LogHelper.warn("Error while doing startup checks, are you using an old version of Forge ? " + e);
-                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
-            }
+            throw new RuntimeException("not implemented yet");
+//            try {
+//                //FIXME: Living dangerously here... Is there a better way of doing this?
+//                SplashProgress.pause();
+//                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
+//                SplashProgress.resume();
+//            }catch(NoClassDefFoundError e) {
+//                LogHelper.warn("Error while doing startup checks, are you using an old version of Forge ? " + e);
+//                toggleFullScreen(client.gameSettings.fullScreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
+//            }
         }
     }
 }
