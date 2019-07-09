@@ -25,9 +25,8 @@ package com.hancinworld.fw.handler;
 import com.hancinworld.fw.FullscreenWindowed;
 import com.hancinworld.fw.proxy.ClientProxy;
 import com.hancinworld.fw.reference.Reference;
-import com.hancinworld.fw.utility.LogHelper;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiVideoSettings;
+import net.minecraft.client.gui.screen.VideoSettingsScreen;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import org.lwjgl.input.Keyboard;
@@ -84,19 +83,19 @@ public class DrawScreenEventHandler {
 
         if(client.getVersion().startsWith("forge-11")){
             //Do it the old way in 1.8 since event.getGui does not exist.
-            if(client.currentScreen instanceof GuiVideoSettings && client.fullscreen != ClientProxy.fullscreen) {
+            if(client.currentScreen instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
                 FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
             }
         }else{
             try {
-                if (event.getGui() instanceof GuiVideoSettings && client.fullscreen != ClientProxy.fullscreen) {
+                if (event.getGui() instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
                     FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
                 }
             // In certain scenarios of 1.8, client mods further change the version and the previous check fails.
             // In those scenarios, we'll get this error and we will fallback to the old method.
             } catch (NoSuchMethodError error) {
                 //Do it the old way in 1.8 since event.getGui does not exist.
-                if(client.currentScreen instanceof GuiVideoSettings && client.fullscreen != ClientProxy.fullscreen) {
+                if(client.currentScreen instanceof VideoSettingsScreen && client.fullscreen != ClientProxy.fullscreen) {
                     FullscreenWindowed.proxy.toggleFullScreen(client.fullscreen);
                 }
             }

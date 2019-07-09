@@ -24,7 +24,7 @@ package com.hancinworld.fw.client.gui;
 
 import net.minecraftforge.fml.client.IModGuiFactory;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.screen.Screen;
 
 import java.util.Set;
 
@@ -43,7 +43,7 @@ public class GuiFactory implements IModGuiFactory {
     }
 
     @Override
-    public GuiScreen createConfigGui(GuiScreen parentScreen) {
+    public Screen createConfigGui(Screen parentScreen) {
         return new ModGuiConfig(parentScreen);
     }
 

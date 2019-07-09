@@ -24,13 +24,13 @@ package com.hancinworld.fw.client.gui;
 
 import com.hancinworld.fw.handler.ConfigurationHandler;
 import com.hancinworld.fw.reference.Reference;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraftforge.fml.client.config.GuiConfig;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraftforge.common.config.ConfigElement;
 
 
 public class ModGuiConfig extends GuiConfig {
-    public ModGuiConfig (GuiScreen parentScreen)
+    public ModGuiConfig (Screen parentScreen)
     {
         super(parentScreen,
                 new ConfigElement(ConfigurationHandler.instance().getConfigurationCategory()).getChildElements(),
