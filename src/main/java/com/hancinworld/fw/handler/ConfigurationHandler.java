@@ -1,306 +1,93 @@
-//Copyright (c) 2015, David Larochelle-Pratte
-//All rights reserved.
-//
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//
-//        1. Redistributions of source code must retain the above copyright notice, this
-//        list of conditions and the following disclaimer.
-//        2. Redistributions in binary form must reproduce the above copyright notice,
-//        this list of conditions and the following disclaimer in the documentation
-//        and/or other materials provided with the distribution.
-//
-//        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-//        ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-//        ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package com.hancinworld.fw.handler;
 
-import com.hancinworld.fw.FullscreenWindowed;
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import com.electronwill.nightconfig.core.io.WritingMode;
 import com.hancinworld.fw.reference.Reference;
-import net.minecraft.client.resources.I18n;
-import net.minecraftforge.fml.client.event.ConfigChangedEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.common.config.ConfigCategory;
-import net.minecraftforge.common.config.Configuration;
-import net.minecraftforge.common.config.Property;
-
-import java.io.File;
+import net.minecraftforge.common.ForgeConfigSpec;
+import java.nio.file.Path;
 
 public class ConfigurationHandler {
 
-    public static final String CATEGORY_ADVANCED = "advanced";
-    private Configuration _configuration;
-    private static ConfigurationHandler _instance;
+	public static final String CATEGORY_GENERAL = "general";
+	public static final String CATEGORY_ADVANCED = "advanced";
 
-    private Property _enableFullscreenWindowed = null;
-    private Property _fullscreenMonitor = null;
-    private Property _enableAdvancedFeatures = null;
-    private Property _customFullscreenDimensions = null;
-    private Property _customFullscreenDimensionsX = null;
-    private Property _customFullscreenDimensionsY = null;
-    private Property _customFullscreenDimensionsW = null;
-    private Property _customFullscreenDimensionsH = null;
-    private Property _onlyRemoveDecorations = null;
-    private Property _enableMaximumCompatibility = null;
+	private static final ForgeConfigSpec.Builder CLIENT_BUILDER = new ForgeConfigSpec.Builder();
+	public static ForgeConfigSpec CLIENT_CONFIG;
 
-    private boolean _commitImmediately = true;
+	// General settings
+	public static ForgeConfigSpec.BooleanValue ENABLED;
+	public static ForgeConfigSpec.BooleanValue MAXIMUM_COMPATIBILITY;
+	public static ForgeConfigSpec.IntValue FULLSCREEN_MONITOR;
 
-    private boolean _isInitializing = true;
+	// Advanced settings
+	public static ForgeConfigSpec.BooleanValue ADVANCED_ENABLED;
+	public static ForgeConfigSpec.BooleanValue CUSTOM_FULLSCREEN;
+	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_X;
+	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_Y;
+	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_W;
+	public static ForgeConfigSpec.IntValue CUSTOM_FULLSCREEN_H;
+//	public static ForgeConfigSpec.BooleanValue ONLY_REMOVE_DECORATIONS;
 
-    private ConfigurationHandler()
-    {
-    }
+	static {
+		CLIENT_BUILDER.comment("General settings").push(CATEGORY_GENERAL);
+		ENABLED = CLIENT_BUILDER
+				.comment("Enable Fullscreen Windowed (replaces Minecraft Fullscreen)")
+				.translation("comment.fullscreenwindowed.enableFullscreenWindowed")
+				.define("enableFullscreenWindowed", true);
+		MAXIMUM_COMPATIBILITY = CLIENT_BUILDER
+				.comment("TRUE: Use a different startup strategy to make this mod play nicer with Optifine & other GL modifying mods. CHANGE AT YOUR OWN RISK.")
+				.translation("comment.fullscreenwindowed.enableMaximumCompatibility")
+				.define("enableMaximumCompatibility", Reference.ENABLE_MAXIMUM_COMPATIBILITY);
+		FULLSCREEN_MONITOR = CLIENT_BUILDER
+				.comment("Indicates which monitor (1-based) to use for fullscreen windowed mode. Use 0 for the default behavior of maximizing on the active monitor.")
+				.translation("comment.fullscreenwindowed.fullscreenmonitor")
+				.defineInRange("fullscreenMonitor", Reference.AUTOMATIC_MONITOR_SELECTION, 0, 50);
+		CLIENT_BUILDER.pop();
 
-    public static ConfigurationHandler instance()
-    {
-        if(_instance == null)
-            _instance = new ConfigurationHandler();
+		CLIENT_BUILDER.comment("Advanced settings").push(CATEGORY_ADVANCED);
+		ADVANCED_ENABLED = CLIENT_BUILDER
+				.comment("To use any of the features in the \"advanced\" section, set this to true.")
+				.translation("comment.fullscreenwindowed.enableAdvancedFeatures")
+				.define("enableAdvancedFeatures", Reference.ADVANCED_FEATURES_ENABLED);
+		CUSTOM_FULLSCREEN = CLIENT_BUILDER
+				.comment("Set this to true to customize what size the window is when fullscreen.")
+				.translation("comment.fullscreenwindowed.customFullscreenDimensions")
+				.define("customFullscreenDimensions", false);
+		CUSTOM_FULLSCREEN_X = CLIENT_BUILDER
+				.comment("X coordinate where to put the window when in fullscreen. 0 is the left pixel column of the primary monitor if fullscreenMonitor is 0, or the left pixel column of the selected monitor. customFullscreenDimensions must be true for this to have any effect.")
+				.translation("comment.fullscreenwindowed.customFullscreenDimensionsX")
+				.defineInRange("customFullscreenDimensionsX", 0, 0, Integer.MAX_VALUE);
+		CUSTOM_FULLSCREEN_Y = CLIENT_BUILDER
+				.comment("Y coordinate where to put the window when in fullscreen. 0 is the top pixel row of the primary monitor if fullscreenMonitor is 0, or the top pixel column of the selected monitor. customFullscreenDimensions must be true for this to have any effect.")
+				.translation("comment.fullscreenwindowed.customFullscreenDimensionsY")
+				.defineInRange("customFullscreenDimensionsY", 0, 0, Integer.MAX_VALUE);
+		CUSTOM_FULLSCREEN_W = CLIENT_BUILDER
+				.comment("Width of the window when fullscreen. customFullscreenDimensions must be true for this to have any effect.")
+				.translation("comment.fullscreenwindowed.customFullscreenDimensionsW")
+				.defineInRange("customFullscreenDimensionsW", 256, 256, Integer.MAX_VALUE);
+		CUSTOM_FULLSCREEN_H = CLIENT_BUILDER
+				.comment("Height of the window when fullscreen. customFullscreenDimensions must be true for this to have any effect.")
+				.translation("comment.fullscreenwindowed.customFullscreenDimensionsH")
+				.defineInRange("customFullscreenDimensionsH", 256, 256, Integer.MAX_VALUE);
+		//TODO: due to how LWJGL draws windows, it's not a good idea to have this... disabled until I can fix the bugs with X,Y being off due to decoration shadows.
+//		ONLY_REMOVE_DECORATIONS = CLIENT_BUILDER
+//				.comment("If set to true, hitting the fullscreen button will only remove the title bar and not resize the window.")
+//				.translation("comment.fullscreenwindowed.onlyRemoveDecorations")
+//				.define("onlyRemoveDecorations", Reference.ONLY_REMOVE_DECORATIONS);
+		CLIENT_BUILDER.pop();
 
-        return _instance;
-    }
+		CLIENT_CONFIG = CLIENT_BUILDER.build();
+	}
 
-    public ConfigCategory getConfigurationCategory()
-    {
-        return _configuration.getCategory(Configuration.CATEGORY_GENERAL);
-    }
+	public static void loadConfig(ForgeConfigSpec spec, Path path) {
+		final CommentedFileConfig configData = CommentedFileConfig.builder(path)
+				.sync()
+				.autosave()
+				.writingMode(WritingMode.REPLACE)
+				.build();
 
+		configData.load();
+		spec.setConfig(configData);
+	}
 
-    public void init(File suggestedConfigurationFile)
-    {
-        if(_configuration == null) {
-            _configuration = new Configuration(suggestedConfigurationFile);
-            _isInitializing = true;
-            load();
-            _isInitializing = false;
-        }
-    }
-
-    @SubscribeEvent
-    public void onConfigurationChangedEvent(ConfigChangedEvent.OnConfigChangedEvent event)
-    {
-        try {
-            if (event.getModID().equalsIgnoreCase(Reference.MOD_ID)) {
-                load();
-                if (!_isInitializing) {
-                    FullscreenWindowed.proxy.registerKeyBindings();
-                }
-            }
-        } catch (java.lang.NoSuchMethodError e) {
-            // In earlier versions of Forge (1.8), event.getModID() does not exist.
-            // While this means any config change in any 1.8 mod configuration will force a reload of our configuration,
-            // this is probably better than crashing...
-            load();
-            if (!_isInitializing) {
-                FullscreenWindowed.proxy.registerKeyBindings();
-            }
-        }
-    }
-
-    public boolean isFullscreenWindowedEnabled()
-    {
-        if(_enableFullscreenWindowed == null)
-            return true;
-
-        return _enableFullscreenWindowed.getBoolean(true);
-    }
-    public void setFullscreenWindowedEnabled(boolean value)
-    {
-        _enableFullscreenWindowed.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-    public int getFullscreenMonitor()
-    {
-        if(_fullscreenMonitor == null)
-            return Reference.AUTOMATIC_MONITOR_SELECTION;
-
-        return _fullscreenMonitor.getInt(Reference.AUTOMATIC_MONITOR_SELECTION);
-    }
-
-    public void setFullscreenMonitor(int value)
-    {
-        _fullscreenMonitor.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-
-    public boolean areAdvancedFeaturesEnabled()
-    {
-        if(_enableAdvancedFeatures == null)
-            return Reference.ADVANCED_FEATURES_ENABLED;
-
-        return _enableAdvancedFeatures.getBoolean(Reference.ADVANCED_FEATURES_ENABLED);
-    }
-
-    public void setAdvancedFeaturesEnabled(boolean value)
-    {
-        _enableAdvancedFeatures.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-
-    public boolean isOnlyRemoveDecorations()
-    {
-        if(_onlyRemoveDecorations == null)
-            return Reference.ONLY_REMOVE_DECORATIONS;
-
-        return _onlyRemoveDecorations.getBoolean(Reference.ONLY_REMOVE_DECORATIONS);
-    }
-
-    public void setOnlyRemoveDecorations(boolean value)
-    {
-        _onlyRemoveDecorations.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-    public boolean isCustomFullscreenDimensions()
-    {
-        if(_customFullscreenDimensions == null)
-            return Reference.CUSTOM_FULLSCREEN_DIMENSIONS;
-
-        return _customFullscreenDimensions.getBoolean(Reference.CUSTOM_FULLSCREEN_DIMENSIONS);
-    }
-
-    public void setCustomFullscreenDimensions(boolean value)
-    {
-        _customFullscreenDimensions.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-
-    public boolean isMaximumCompatibilityEnabled()
-    {
-        if(_enableMaximumCompatibility == null)
-            return Reference.ENABLE_MAXIMUM_COMPATIBILITY;
-
-        return _enableMaximumCompatibility.getBoolean(Reference.ENABLE_MAXIMUM_COMPATIBILITY);
-    }
-
-    public void setEnableMaximumCompatibility(boolean value)
-    {
-        _enableMaximumCompatibility.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-
-    public int getCustomFullscreenDimensionsX()
-    {
-        if(_customFullscreenDimensionsX == null)
-            return Reference.CUSTOM_FULLSCREEN_X;
-
-        return _customFullscreenDimensionsX.getInt(Reference.CUSTOM_FULLSCREEN_X);
-    }
-
-    public void setCustomFullscreenDimensionsX(int value)
-    {
-        _customFullscreenDimensionsX.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-    public int getCustomFullscreenDimensionsY()
-    {
-        if(_customFullscreenDimensionsY == null)
-            return Reference.CUSTOM_FULLSCREEN_Y;
-
-        return _customFullscreenDimensionsY.getInt(Reference.CUSTOM_FULLSCREEN_Y);
-    }
-
-    public void setCustomFullscreenDimensionsY(int value)
-    {
-        _customFullscreenDimensionsY.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-    public int getCustomFullscreenDimensionsW()
-    {
-        if(_customFullscreenDimensionsW == null)
-            return Reference.CUSTOM_FULLSCREEN_W;
-
-        return _customFullscreenDimensionsW.getInt(Reference.CUSTOM_FULLSCREEN_W);
-    }
-
-    public void setCustomFullscreenDimensionsW(int value)
-    {
-        _customFullscreenDimensionsW.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-    public int getCustomFullscreenDimensionsH()
-    {
-        if(_customFullscreenDimensionsH == null)
-            return Reference.CUSTOM_FULLSCREEN_H;
-
-        return _customFullscreenDimensionsH.getInt(Reference.CUSTOM_FULLSCREEN_H);
-    }
-
-    public void setCustomFullscreenDimensionsH(int value)
-    {
-        _customFullscreenDimensionsH.set(value);
-
-        if(_commitImmediately && _configuration.hasChanged())
-            _configuration.save();
-    }
-
-
-    public boolean isCommitImmediately()
-    {
-        return _commitImmediately;
-    }
-    public void setCommitImmediately(boolean value)
-    {
-        _commitImmediately = value;
-    }
-
-
-    private void load()
-    {
-        _enableFullscreenWindowed = _configuration.get(Configuration.CATEGORY_GENERAL, "enableFullscreenWindowed", true, I18n.format("comment.fullscreenwindowed.enableFullscreenWindowed"));
-        _fullscreenMonitor = _configuration.get(Configuration.CATEGORY_GENERAL, "fullscreenMonitor", Reference.AUTOMATIC_MONITOR_SELECTION, I18n.format("comment.fullscreenwindowed.fullscreenmonitor"));
-        _enableAdvancedFeatures = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "enableAdvancedFeatures", Reference.ADVANCED_FEATURES_ENABLED, I18n.format("comment.fullscreenwindowed.enableAdvancedFeatures"));
-        _enableMaximumCompatibility = _configuration.get(Configuration.CATEGORY_GENERAL, "enableMaximumCompatibility", Reference.ENABLE_MAXIMUM_COMPATIBILITY, I18n.format("comment.fullscreenwindowed.enableMaximumCompatibility"));
-
-        _customFullscreenDimensions = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "customFullscreenDimensions", false, I18n.format("comment.fullscreenwindowed.customFullscreenDimensions"));
-        _customFullscreenDimensionsX = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "customFullscreenDimensionsX", 0, I18n.format("comment.fullscreenwindowed.customFullscreenDimensionsX"));
-        _customFullscreenDimensionsY = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "customFullscreenDimensionsY", 0, I18n.format("comment.fullscreenwindowed.customFullscreenDimensionsY"));
-        _customFullscreenDimensionsW = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "customFullscreenDimensionsW", 0, I18n.format("comment.fullscreenwindowed.customFullscreenDimensionsW"));
-        _customFullscreenDimensionsH = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "customFullscreenDimensionsH", 0, I18n.format("comment.fullscreenwindowed.customFullscreenDimensionsH"));
-
-        //TODO: due to how LWJGL draws windows, it's not a good idea to have this... disabled until I can fix the bugs with X,Y being off due to decoration shadows.
-        //_onlyRemoveDecorations = _configuration.get(ConfigurationHandler.CATEGORY_ADVANCED, "onlyRemoveDecorations", Reference.ONLY_REMOVE_DECORATIONS, I18n.format("comment.fullscreenwindowed.onlyRemoveDecorations"));
-
-        if (_configuration.hasChanged()) {
-            _configuration.save();
-        }
-
-
-    }
-
-
-    @Override
-    public String toString(){
-        return _configuration.toString();
-    }
 }

@@ -22,9 +22,6 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package com.hancinworld.fw.proxy;
 
-
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-
 import java.io.File;
 
 public interface IProxy {

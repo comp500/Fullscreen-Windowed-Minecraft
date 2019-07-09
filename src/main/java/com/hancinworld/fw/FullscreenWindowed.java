@@ -23,23 +23,42 @@
 package com.hancinworld.fw;
 
 import com.hancinworld.fw.handler.*;
+import com.hancinworld.fw.proxy.ClientProxy;
 import com.hancinworld.fw.proxy.IProxy;
 import com.hancinworld.fw.reference.Reference;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.*;
-import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.loading.FMLPaths;
 
-@Mod(modid = Reference.MOD_ID, clientSideOnly=true, name=Reference.MOD_NAME,version=Reference.VERSION,guiFactory = Reference.GUI_FACTORY_CLASS, acceptedMinecraftVersions = Reference.MC_VERSIONS)
+@Mod(Reference.MOD_ID)
 public class FullscreenWindowed {
 
-    @SidedProxy(clientSide = Reference.CLIENT_PROXY_CLASS)
-    public static IProxy proxy;
+    public static IProxy proxy = DistExecutor.runForDist(() -> ClientProxy::new, () -> () -> null);
 
-    @Mod.Instance(Reference.MOD_ID)
-    public static FullscreenWindowed instance;
+    public FullscreenWindowed() {
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ConfigurationHandler.CLIENT_CONFIG);
 
+        // Register the setup method for modloading
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
+
+        ConfigurationHandler.loadConfig(ConfigurationHandler.CLIENT_CONFIG, FMLPaths.CONFIGDIR.get().resolve("fw-client.toml"));
+    }
+
+    private void setup(final FMLCommonSetupEvent event) {
+        proxy.init();
+    }
+
+    // You can use EventBusSubscriber to automatically subscribe events on the contained class (this is subscribing to the MOD
+    // Event bus for receiving Registry Events)
+    @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class RegistryEvents {
+    }
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event)

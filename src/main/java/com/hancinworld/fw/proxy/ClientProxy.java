@@ -40,7 +40,7 @@ import org.lwjgl.opengl.DisplayMode;
 import java.awt.*;
 import java.io.File;
 
-public class ClientProxy extends CommonProxy {
+public class ClientProxy implements IProxy {
 
     private final Minecraft client = Minecraft.getMinecraft();
     private Rectangle _savedWindowedBounds;
