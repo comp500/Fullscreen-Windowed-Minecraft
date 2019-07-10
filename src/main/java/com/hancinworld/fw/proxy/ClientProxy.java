@@ -24,21 +24,20 @@ package com.hancinworld.fw.proxy;
 
 import com.hancinworld.fw.handler.ConfigurationHandler;
 import com.hancinworld.fw.handler.DrawScreenEventHandler;
-import com.hancinworld.fw.handler.KeyInputEventHandler;
 import com.hancinworld.fw.reference.Reference;
-import net.minecraft.client.renderer.VideoMode;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.PointerBuffer;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWVidMode;
 
-import java.awt.*;
-import java.io.File;
+import java.awt.Rectangle;
+import java.awt.Point;
 import java.nio.IntBuffer;
 
 public class ClientProxy implements IProxy {
-
     private final Minecraft client = Minecraft.getInstance();
     private Rectangle _savedWindowedBounds;
     public static boolean fullscreen;
@@ -48,11 +47,6 @@ public class ClientProxy implements IProxy {
     /** This keybind replaces the default MC fullscreen keybind in their logic handler. Without it, the game crashes.
      *  If this is set to any valid key, problems may occur. */
     public static KeyBinding ignoreKeyBinding = new KeyBinding("key.fullscreenwindowed.unused", -1, "key.categories.misc");
-
-
-    public ClientProxy()
-    {
-    }
 
     @Override
     public void registerKeyBindings()
@@ -87,35 +81,31 @@ public class ClientProxy implements IProxy {
 
     private Rectangle findCurrentScreenDimensionsAndPosition(int x, int y)
     {
-        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice[] screens = env.getScreenDevices();
-
-        for(GraphicsDevice dev : screens)
-        {
-            GraphicsConfiguration displayMode = dev.getDefaultConfiguration();
-            Rectangle bounds = displayMode.getBounds();
-
-            if(bounds.contains(x, y))
-                return bounds;
-        }
-
         //attempt to use GLFW to get the screen's video mode
-        VideoMode mode = new VideoMode(GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor()));
-        return new Rectangle(0, 0, mode.getWidth(), mode.getHeight());
-}
+        GLFWVidMode mode = GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor());
+        if (mode == null)
+            return null;
+        return new Rectangle(0, 0, mode.width(), mode.height());
+	}
+
     private Rectangle findScreenDimensionsByID(int monitorID)
     {
         if(monitorID < 1)
             return null;
 
-        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice[] screens = env.getScreenDevices();
+        PointerBuffer monitors = GLFW.glfwGetMonitors();
 
-        if(screens == null || screens.length == 0 || screens.length < monitorID){
+        if(monitors == null || monitors.limit() == 0 || monitors.limit() < monitorID){
             return null;
         }
 
-        return screens[monitorID - 1].getDefaultConfiguration().getBounds();
+        GLFWVidMode mode = GLFW.glfwGetVideoMode(monitors.get(monitorID - 1));
+        if (mode == null)
+            return null;
+        IntBuffer xPos = BufferUtils.createIntBuffer(1);
+        IntBuffer yPos = BufferUtils.createIntBuffer(1);
+        GLFW.glfwGetMonitorPos(monitors.get(monitorID - 1), xPos, yPos);
+        return new Rectangle(xPos.get(0), yPos.get(0), mode.width(), mode.height());
     }
 
     private Rectangle getAppropriateScreenBounds(Rectangle currentCoordinates, int desiredMonitor)
@@ -167,29 +157,23 @@ public class ClientProxy implements IProxy {
     @Override
     public void toggleFullScreen(boolean goFullScreen, int desiredMonitor) {
 
-        //Set value if it isn't set already.
-        if(System.getProperty("org.lwjgl.opengl.Window.undecorated") == null){
-            System.setProperty("org.lwjgl.opengl.Window.undecorated", "false");
-        }
-
         //If we're in actual fullscreen right now, then we need to fix that.
         if(isFullscreen()) {
             fullscreen = true;
         }
 
-        String expectedState = goFullScreen ? "true":"false";
         // If all state is valid, there is nothing to do and we just exit.
         if(fullscreen == goFullScreen
                 && !isFullscreen() //Display in fullscreen mode: Change required
-                && System.getProperty("org.lwjgl.opengl.Window.undecorated").equals(expectedState) // Window not in expected state
+                && GLFW.glfwGetWindowAttrib(client.mainWindow.getHandle(), GLFW.GLFW_DECORATED) == GLFW.GLFW_FALSE // Window not in expected state
         )
             return;
 
         //Save our current display parameters
-        IntBuffer currX = IntBuffer.allocate(1);
-        IntBuffer currY = IntBuffer.allocate(1);
-        IntBuffer currW = IntBuffer.allocate(1);
-        IntBuffer currH = IntBuffer.allocate(1);
+        IntBuffer currX = BufferUtils.createIntBuffer(1);
+        IntBuffer currY = BufferUtils.createIntBuffer(1);
+        IntBuffer currW = BufferUtils.createIntBuffer(1);
+        IntBuffer currH = BufferUtils.createIntBuffer(1);
         GLFW.glfwGetWindowPos(client.mainWindow.getHandle(), currX, currY);
         GLFW.glfwGetWindowSize(client.mainWindow.getHandle(), currW, currH);
         Rectangle currentCoordinates = new Rectangle(currX.get(0), currY.get(0), currW.get(0), currH.get(0));
@@ -197,8 +181,7 @@ public class ClientProxy implements IProxy {
         if(goFullScreen && !isFullscreen())
             _savedWindowedBounds = currentCoordinates;
 
-        //Changing this property and causing a Display update will cause LWJGL to add/remove decorations (borderless).
-        System.setProperty("org.lwjgl.opengl.Window.undecorated",expectedState);
+        GLFW.glfwSetWindowAttrib(client.mainWindow.getHandle(), GLFW.GLFW_DECORATED, goFullScreen ? GLFW.GLFW_FALSE : GLFW.GLFW_TRUE);
 
         //Get the fullscreen dimensions for the appropriate screen.
         Rectangle screenBounds = getAppropriateScreenBounds(currentCoordinates, desiredMonitor);
@@ -208,7 +191,7 @@ public class ClientProxy implements IProxy {
         if(newBounds == null)
             newBounds = screenBounds;
 
-        if(!goFullScreen && !ClientProxy.fullscreen) {
+        if(!goFullScreen && !fullscreen) {
             newBounds = currentCoordinates;
             _savedWindowedBounds = currentCoordinates;
         }
@@ -220,7 +203,11 @@ public class ClientProxy implements IProxy {
             client.gameSettings.fullscreen = fullscreen;
             client.gameSettings.saveOptions();
         }
-        GLFW.glfwSetWindowMonitor(client.mainWindow.getHandle(), 0L, newBounds.x, newBounds.y, newBounds.width, newBounds.height, -1);
+        if (fullscreen) {
+            GLFW.glfwSetWindowMonitor(client.mainWindow.getHandle(), 0L, newBounds.x, newBounds.y, newBounds.width, newBounds.height, -1);
+        }
+        GLFW.glfwSetWindowSize(client.mainWindow.getHandle(), newBounds.width, newBounds.height);
+        GLFW.glfwSetWindowPos(client.mainWindow.getHandle(), newBounds.x, newBounds.y);
         //Display.setFullscreen(false);
         //Display.setDisplayMode(new DisplayMode((int) newBounds.getWidth(), (int) newBounds.getHeight()));
         //Display.setLocation(newBounds.x, newBounds.y);

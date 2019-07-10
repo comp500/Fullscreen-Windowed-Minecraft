@@ -27,11 +27,9 @@ import com.hancinworld.fw.proxy.ClientProxy;
 import com.hancinworld.fw.proxy.IProxy;
 import com.hancinworld.fw.reference.Reference;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.SidedProxy;
-import net.minecraftforge.fml.common.event.*;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -49,27 +47,21 @@ public class FullscreenWindowed {
     public FullscreenWindowed() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ConfigurationHandler.CLIENT_CONFIG);
 
-        // Register the setup method for modloading
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
+	    FMLJavaModLoadingContext.get().getModEventBus().addListener(this::postInit);
 
         ConfigurationHandler.loadConfig(ConfigurationHandler.CLIENT_CONFIG, FMLPaths.CONFIGDIR.get().resolve("fw-client.toml"));
     }
 
-    private void setup(final FMLCommonSetupEvent event) {
+    // TODO: use FMLClientSetupEvent?
+    public void setup(final FMLCommonSetupEvent event) {
         if(proxy != null) {
             proxy.subscribeEvents();
+	        proxy.registerKeyBindings();
         }
     }
 
-    @Mod.EventHandler
-    public void init(FMLInitializationEvent event) {
-        if(proxy != null)
-            proxy.registerKeyBindings();
-
-    }
-
-    @Mod.EventHandler
-    public void postInit(FMLPostInitializationEvent event) {
+    public void postInit(final FMLLoadCompleteEvent event) {
         if(proxy != null)
             proxy.performStartupChecks();
     }

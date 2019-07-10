@@ -33,15 +33,15 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(value = Dist.CLIENT, modid = Reference.MOD_ID)
 public class KeyInputEventHandler {
 
-    private static boolean isCorrectKeyBinding()
+    private static boolean isCorrectKeyBinding(int key, int scanCode)
     {
-        return ClientProxy.fullscreenKeyBinding != null && ClientProxy.fullscreenKeyBinding.isPressed();
+        return ClientProxy.fullscreenKeyBinding != null && ClientProxy.fullscreenKeyBinding.matchesKey(key, scanCode);
     }
 
     @SubscribeEvent
     public static void handleKeyInputEvent(InputEvent.KeyInputEvent event)
     {
-        if(isCorrectKeyBinding())
+        if(event.getAction() == 1 && isCorrectKeyBinding(event.getKey(), event.getScanCode()))
         {
             FullscreenWindowed.proxy.toggleFullScreen(!ClientProxy.fullscreen, ConfigurationHandler.FULLSCREEN_MONITOR.get());
         }
